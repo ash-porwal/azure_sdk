@@ -169,6 +169,19 @@ with open("destination_file_path", "wb") as my_blob:
 blob_client.delete_blob()
 
 # --------------------------------------------------------------------------------
+# Restore soft delete
+# --------------------------------------------------------------------------------
+
+# Soft deleting a blob means the blob is marked for deletion but is not immediately removed. 
+# Instead, it's retained for a specified period, allowing you to restore it if necessary.
+
+# Before you can use the undelete_blob method, you must have soft delete enabled on your Blob Storage account.
+# enabling soft del is done through the Azure Portal, Azure CLI, or ARM templates.
+
+# Restore the soft deleted blob
+blob_client.undelete_blob()
+
+# --------------------------------------------------------------------------------
 # copy blob to new location
 # --------------------------------------------------------------------------------
 
@@ -183,7 +196,7 @@ def copy_blob_to_new_location(src_container_name, src_blob_name, dest_container_
     dest_blob_client = blob_service_client.get_blob_client(container=dest_container_name, blob=dest_blob_name)
 
     # Start the copy operation
-    dest_blob_client.start_copy_from_url(src_blob_url)
+    copy_operation = dest_blob_client.start_copy_from_url(src_blob_url)
 
     # You can also check the copy status if needed
     properties = dest_blob_client.get_blob_properties()
@@ -192,6 +205,28 @@ def copy_blob_to_new_location(src_container_name, src_blob_name, dest_container_
         properties = dest_blob_client.get_blob_properties()
 
 copy_blob_to_new_location("source_container", "source_blob.txt", "destination_container", "destination_blob.txt")
+
+# --------------------------------------------------------------------------------
+# Abort the copy 
+# --------------------------------------------------------------------------------
+
+# This method is used to abort a blob copy operation that's currently in progress in Azure Blob Storage.
+
+dest_blob_client = 'some clinet'
+copy_operation = dest_blob_client.start_copy_from_url('src_blob_url')
+
+# aborting above copy
+copy_id = copy_operation['copy_id']
+blob_client.abort_copy(copy_id)
+
+# --------------------------------------------------------------------------------
+# Create Snapshot of blob
+# --------------------------------------------------------------------------------
+# You can read, copy, or delete a snapshot, but you cannot modify it.
+snapshot = blob_client.create_snapshot()
+
+# The snapshot's datetime can be accessed via the 'snapshot' attribute
+snapshot_datetime = snapshot['snapshot']
 
 # --------------------------------------------------------------------------------
 # Fetch account information
@@ -265,6 +300,44 @@ for rule in service_properties['cors']:
     print(f"Allowed Origins: {rule['allowed_origins']}")
     print(f"Allowed Methods: {rule['allowed_methods']}")
     print("----------")
+
+# --------------------------------------------------------------------------------
+# we can set meta data of blobs too:
+#   Setting metadata for a blob can be helpful for storing additional information 
+#   about the blob that doesn't necessarily belong in the blob's content. 
+#   Metadata is represented as a dictionary of string key-value pairs.
+# --------------------------------------------------------------------------------
+
+# Get a client representing the container and then the blob
+container_name = 'your-container-name'
+blob_name = 'your-blob-name'
+blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob_name)
+
+# Define metadata
+metadata = {
+    "key1": "value1",
+    "key2": "value2"
+}
+
+# Set metadata for the blob
+blob_client.set_blob_metadata(metadata=metadata)
+
+
+# A few things to note about blob metadata:
+
+#   1. Metadata key names are 
+#      case-preserving - (If a system is case-preserving but case-insensitive in its operations: 
+#      You could create or store a file named Example.txt. 
+#      When searching for the file, you might use example.txt, EXAMPLE.TXT, or any other case variation, 
+#      and the system would still find Example.txt because it's case-insensitive in its search operations).
+#      and 
+#      case-insensitive(This means that uppercase and lowercase versions of letters are treated as the same), 
+#      meaning that you can't have two metadata keys differing only in case.
+#   2. All metadata names and values are stored as strings.
+#   3. Avoid using special characters in metadata keys and values, and be aware of potential encoding requirements.
+#      There are size limits to the combined size of metadata for a blob, 
+#      so be cautious not to exceed them. 
+#      the total size of blob metadata was limited to 8 KB.
 
 # --------------------------------------------------------------------------------
 # Close the Connection
